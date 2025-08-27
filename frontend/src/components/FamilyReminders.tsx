@@ -33,8 +33,6 @@ const FamilyReminders: React.FC = () => {
     try {
       const response = await fetch('http://localhost:8000/api/assistant/family/reminders')
       if (response.ok) {
-        const data = await response.json()
-        
         // Set up daily tasks
         setDailyTasks([
           {

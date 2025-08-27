@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
@@ -7,6 +8,9 @@ from passlib.context import CryptContext
 from core.config import settings
 
 router = APIRouter()
+
+# OAuth2 scheme for token authentication
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -97,8 +101,3 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     
     # In a real app, you'd get user from database
     return User(username=username, email=f"{username}@example.com")
-
-
-# OAuth2 scheme for token authentication
-from fastapi.security import OAuth2PasswordBearer
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")

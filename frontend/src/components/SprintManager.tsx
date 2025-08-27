@@ -23,7 +23,7 @@ const SprintManager: React.FC<SprintManagerProps> = ({ currentSprint, onSprintUp
   const [retro, setRetro] = useState('')
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    let interval: ReturnType<typeof setInterval>
     if (currentSprint && currentSprint.status === 'active') {
       interval = setInterval(() => {
         const remaining = Math.max(0, Math.ceil((new Date(currentSprint.end_time).getTime() - Date.now()) / 60000))
