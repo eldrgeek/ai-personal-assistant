@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiUrl } from '../utils/api'
 
 interface MCPTool {
   name: string
@@ -94,7 +95,7 @@ const MCPIntegration: React.FC = () => {
     setResponse(null)
 
     try {
-      const response = await fetch('http://localhost:8000/api/assistant/mcp/tool', {
+      const response = await fetch(apiUrl('api/assistant/mcp/tool'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

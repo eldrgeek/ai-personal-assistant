@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiUrl } from '../utils/api'
 
 interface Ritual {
   id: string
@@ -19,8 +20,8 @@ const RitualTracker: React.FC = () => {
   const fetchRituals = async () => {
     try {
       const [morningResponse, eveningResponse] = await Promise.all([
-        fetch('http://localhost:8000/api/assistant/rituals/morning'),
-        fetch('http://localhost:8000/api/assistant/rituals/evening')
+        fetch(apiUrl('api/assistant/rituals/morning')),
+        fetch(apiUrl('api/assistant/rituals/evening'))
       ])
 
       if (morningResponse.ok && eveningResponse.ok) {

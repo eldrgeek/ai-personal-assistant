@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiUrl } from '../utils/api'
 
 interface FamilyMember {
   name: string
@@ -31,7 +32,7 @@ const FamilyReminders: React.FC = () => {
 
   const fetchFamilyData = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/assistant/family/reminders')
+      const response = await fetch(apiUrl('api/assistant/family/reminders'))
       if (response.ok) {
         // Set up daily tasks
         setDailyTasks([

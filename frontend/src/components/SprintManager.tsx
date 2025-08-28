@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiUrl } from '../utils/api'
 
 interface Sprint {
   id: string
@@ -42,7 +43,7 @@ const SprintManager: React.FC<SprintManagerProps> = ({ currentSprint, onSprintUp
     if (!task.trim()) return
 
     try {
-      const response = await fetch('http://localhost:8000/api/assistant/sprint/start', {
+      const response = await fetch(apiUrl('api/assistant/sprint/start'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,7 +68,7 @@ const SprintManager: React.FC<SprintManagerProps> = ({ currentSprint, onSprintUp
     if (!distraction.trim() || !currentSprint) return
 
     try {
-      await fetch(`http://localhost:8000/api/assistant/sprint/${currentSprint.id}/distraction`, {
+      await fetch(apiUrl(`api/assistant/sprint/${currentSprint.id}/distraction`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,7 +92,7 @@ const SprintManager: React.FC<SprintManagerProps> = ({ currentSprint, onSprintUp
     if (!retro.trim() || !currentSprint) return
 
     try {
-      await fetch(`http://localhost:8000/api/assistant/sprint/${currentSprint.id}/complete`, {
+      await fetch(apiUrl(`api/assistant/sprint/${currentSprint.id}/complete`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

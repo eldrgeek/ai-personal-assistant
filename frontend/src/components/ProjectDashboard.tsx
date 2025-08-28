@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiUrl } from '../utils/api'
 
 interface Project {
   id: string
@@ -55,7 +56,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
     if (!newProject.name.trim() || !newProject.description.trim()) return
 
     try {
-      const response = await fetch('http://localhost:8000/api/projects/', {
+      const response = await fetch(apiUrl('api/projects/'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,7 +77,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
 
   const updateProjectStatus = async (projectId: string, newStatus: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
+      const response = await fetch(apiUrl(`api/projects/${projectId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

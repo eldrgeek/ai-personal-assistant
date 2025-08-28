@@ -5,6 +5,7 @@ import ProjectDashboard from './components/ProjectDashboard'
 import RitualTracker from './components/RitualTracker'
 import FamilyReminders from './components/FamilyReminders'
 import MCPIntegration from './components/MCPIntegration'
+import { apiUrl } from './utils/api'
 
 interface Sprint {
   id: string
@@ -38,7 +39,7 @@ function App() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/projects/')
+      const response = await fetch(apiUrl('api/projects/'))
       if (response.ok) {
         const data = await response.json()
         setProjects(data)
