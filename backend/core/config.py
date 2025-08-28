@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     google_calendar_credentials: Optional[str] = None
     whatsapp_api_key: Optional[str] = None
     
+    # Production settings
+    port: int = 8000
+    host: str = "0.0.0.0"
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
@@ -47,6 +51,21 @@ def load_env():
                 if line.strip() and not line.startswith("#"):
                     key, value = line.strip().split("=", 1)
                     os.environ[key] = value
+
+# Production environment detection
+def is_production():
+    """Check if running in production environment"""
+    return os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+# Update settings based on environment
+if is_production():
+    settings.debug = False
+    settings.host = "0.0.0.0"
+    # In production, use environment variables for sensitive data
+    if os.getenv("SECRET_KEY"):
+        settings.secret_key = os.getenv("SECRET_KEY")
+    if os.getenv("DATABASE_URL"):
+        settings.database_url = os.getenv("DATABASE_URL")
 
 # Load environment variables on import
 load_env()

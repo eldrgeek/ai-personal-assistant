@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: ai-personal-assistant-api
+    runtime: python
+    plan: free
+    buildCommand: |
+      cd backend
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      python main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: PORT
+        value: "8000"
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: "sqlite:///./ai_assistant.db"
+      - key: MCP_SERVER_URL
+        value: "http://localhost:3001"
+    healthCheckPath: /health
+    autoDeploy: true
