@@ -93,9 +93,16 @@ async def debug_cors():
     logger.info("CORS debug endpoint accessed")
     return {
         "is_production": is_production(),
-        "environment": os.getenv("ENVIRONMENT", "not-set"),
-        "allowed_origins": allowed_origins,
-        "allow_credentials": allow_credentials
+        "environment_checks": {
+            "ENVIRONMENT": os.getenv("ENVIRONMENT", "not-set"),
+            "RENDER_SERVICE_NAME": os.getenv("RENDER_SERVICE_NAME", "not-set"),
+            "PORT": os.getenv("PORT", "not-set"),
+            "all_env_vars": dict(os.environ)
+        },
+        "cors_config": {
+            "allowed_origins": allowed_origins,
+            "allow_credentials": allow_credentials
+        }
     }
 
 @app.options("/{rest_of_path:path}")
