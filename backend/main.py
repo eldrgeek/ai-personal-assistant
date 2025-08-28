@@ -80,7 +80,20 @@ app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 @app.get("/")
 async def root():
     logger.info("Root endpoint accessed")
-    return {"message": "AI Personal Assistant API", "version": "0.1.0", "build": "87bb345-v2"}
+    # Get current git revision
+    try:
+        import subprocess
+        git_rev = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], 
+                                        stderr=subprocess.DEVNULL).decode().strip()
+    except:
+        git_rev = "unknown"
+    
+    return {
+        "message": "AI Personal Assistant API", 
+        "version": "0.1.0", 
+        "build": f"{git_rev}-v4",
+        "deploy_time": __import__('datetime').datetime.now().isoformat()
+    }
 
 @app.get("/health")
 async def health_check():
@@ -91,17 +104,63 @@ async def health_check():
 async def debug_cors():
     """Debug endpoint to check CORS configuration"""
     logger.info("CORS debug endpoint accessed")
+    
+    # Get git revision info
+    import subprocess
+    try:
+        git_rev = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], 
+                                        stderr=subprocess.DEVNULL).decode().strip()
+        git_branch = subprocess.check_output(['git', 'branch', '--show-current'], 
+                                           stderr=subprocess.DEVNULL).decode().strip()
+    except:
+        git_rev = "unknown"
+        git_branch = "unknown"
+    
+    # Categorize environment variables
+    production_indicators = {
+        "RENDER_SERVICE_NAME": os.getenv("RENDER_SERVICE_NAME"),
+        "RENDER_SERVICE_ID": os.getenv("RENDER_SERVICE_ID"), 
+        "RENDER": os.getenv("RENDER"),
+        "PORT": os.getenv("PORT"),
+        "ENVIRONMENT": os.getenv("ENVIRONMENT"),
+        "NODE_ENV": os.getenv("NODE_ENV"),
+        "PYTHON_ENV": os.getenv("PYTHON_ENV")
+    }
+    
+    # Filter out None values and common system vars
+    system_vars = {}
+    custom_vars = {}
+    for key, value in os.environ.items():
+        if key.startswith(('PATH', 'HOME', 'USER', 'SHELL', 'PWD', 'OLDPWD', 'TERM', 'LANG')):
+            continue  # Skip common system vars
+        elif key.startswith(('RENDER_', 'RAILWAY_', 'HEROKU_', 'VERCEL_', 'NETLIFY_')):
+            system_vars[key] = value
+        else:
+            custom_vars[key] = value
+    
     return {
-        "is_production": is_production(),
-        "environment_checks": {
-            "ENVIRONMENT": os.getenv("ENVIRONMENT", "not-set"),
-            "RENDER_SERVICE_NAME": os.getenv("RENDER_SERVICE_NAME", "not-set"),
-            "PORT": os.getenv("PORT", "not-set"),
-            "all_env_vars": dict(os.environ)
+        "deployment_info": {
+            "git_revision": git_rev,
+            "git_branch": git_branch,
+            "build_version": "b34eb02-v3",  # Update this with each deploy
+            "timestamp": __import__('datetime').datetime.now().isoformat()
         },
-        "cors_config": {
+        "environment_analysis": {
+            "is_production": is_production(),
+            "production_indicators": {k: v for k, v in production_indicators.items() if v is not None},
+            "platform_vars": system_vars,
+            "custom_vars": custom_vars
+        },
+        "cors_configuration": {
             "allowed_origins": allowed_origins,
-            "allow_credentials": allow_credentials
+            "allow_credentials": allow_credentials,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "headers": ["*"]
+        },
+        "system_info": {
+            "python_version": __import__('sys').version,
+            "platform": __import__('platform').platform(),
+            "working_directory": os.getcwd()
         }
     }
 
