@@ -32,8 +32,8 @@ if is_production():
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "https://your-netlify-site.netlify.app",  # Update with your Netlify URL
-            "https://your-render-app.onrender.com"    # Update with your Render URL
+            "https://mikes-personal--assistant.netlify.app",  # Your Netlify URL
+            "https://ai-personal-assistant-9xpq.onrender.com"    # Your Render URL
         ],
         allow_credentials=True,
         allow_methods=["*"],
