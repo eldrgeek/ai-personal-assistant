@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
@@ -41,27 +42,29 @@ logger.info(f"Production environment detected: {is_production()}")
 
 # Define allowed origins based on environment
 if is_production():
+    # IMPORTANT: Only exact origin strings work with credentials=True
+    # FastAPI doesn't support wildcard patterns like "https://*.netlify.app"
     allowed_origins = [
-        "https://mikes-personal-assistant.netlify.app",
-        "https://ai-personal-assistant-9xpq.onrender.com",
-        "https://netlify.app",  # Allow all netlify subdomains
-        "*"  # Temporarily allow all origins for debugging
+        "https://mikes-personal-assistant.netlify.app",  # Primary Netlify URL
+        "https://ai-personal-assistant-9xpq.onrender.com"  # Backend self-reference
     ]
+    allow_credentials = True
 else:
     allowed_origins = [
         "http://localhost:3000",
         "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "*"  # Allow all in development
+        "http://127.0.0.1:3000", 
+        "http://127.0.0.1:5173"
     ]
+    allow_credentials = True
 
 logger.info(f"Allowed CORS origins: {allowed_origins}")
+logger.info(f"Allow credentials: {allow_credentials}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"]
@@ -89,26 +92,24 @@ async def debug_cors():
     """Debug endpoint to check CORS configuration"""
     logger.info("CORS debug endpoint accessed")
     
-    # Get the current allowed origins based on environment
+    # Get the actual configured origins
     if is_production():
         current_origins = [
             "https://mikes-personal-assistant.netlify.app",
-            "https://ai-personal-assistant-9xpq.onrender.com",
-            "https://netlify.app",
-            "*"
+            "https://ai-personal-assistant-9xpq.onrender.com"
         ]
     else:
         current_origins = [
             "http://localhost:3000",
             "http://localhost:5173",
             "http://127.0.0.1:3000",
-            "http://127.0.0.1:5173",
-            "*"
+            "http://127.0.0.1:5173"
         ]
     
     return {
         "cors_enabled": True,
         "allow_origins": current_origins,
+        "allow_credentials": allow_credentials if 'allow_credentials' in locals() else True,
         "environment": "production" if is_production() else "development",
         "debug_mode": settings.debug,
         "is_production": is_production(),
@@ -116,7 +117,56 @@ async def debug_cors():
             "ENVIRONMENT": os.getenv("ENVIRONMENT"),
             "PORT": os.getenv("PORT"),
             "HOST": os.getenv("HOST")
-        }
+        },
+        "note": "CORS is properly configured with exact origin matching"
+    }
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(request: Request, rest_of_path: str):
+    """
+    Handle CORS preflight requests explicitly
+    """
+    origin = request.headers.get("origin")
+    logger.info(f"Preflight request from origin: {origin} for path: /{rest_of_path}")
+    
+    response_headers = {
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Max-Age": "3600",
+    }
+    
+    # Check if origin is allowed
+    if is_production():
+        allowed = [
+            "https://mikes-personal-assistant.netlify.app",
+            "https://ai-personal-assistant-9xpq.onrender.com"
+        ]
+    else:
+        allowed = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173"
+        ]
+    
+    if origin in allowed:
+        response_headers["Access-Control-Allow-Origin"] = origin
+        response_headers["Access-Control-Allow-Credentials"] = "true"
+        logger.info(f"CORS approved for origin: {origin}")
+    else:
+        logger.warning(f"CORS rejected for origin: {origin}")
+    
+    return Response(headers=response_headers)
+
+@app.get("/test/cors")
+async def test_cors():
+    """Simple test endpoint for CORS verification"""
+    logger.info("CORS test endpoint accessed")
+    return {
+        "status": "success",
+        "message": "CORS is working correctly",
+        "timestamp": os.popen('date').read().strip(),
+        "backend_url": "https://ai-personal-assistant-9xpq.onrender.com"
     }
 
 if __name__ == "__main__":
