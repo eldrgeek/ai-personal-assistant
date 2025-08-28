@@ -1,202 +1,119 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from sqlalchemy.orm import Session
+from models.project import Project as ProjectModel
+from core.database import get_db
 
 router = APIRouter()
 
 
 class Project(BaseModel):
     id: str
-    name: str
-    description: str
+    title: str
+    description: Optional[str] = None
     priority: str
     status: str
+    category: Optional[str] = None
+    progress_percentage: int
+    is_high_priority: bool
+    is_completed: bool
     created_at: datetime
     updated_at: datetime
 
+    class Config:
+        from_attributes = True
+
 
 class ProjectCreate(BaseModel):
-    name: str
-    description: str
+    title: str
+    description: Optional[str] = None
     priority: str = "medium"
+    category: Optional[str] = None
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
+    title: Optional[str] = None
     description: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
-
-
-# Mock projects data (in real app, this would come from database)
-MOCK_PROJECTS = [
-    {
-        "id": "1",
-        "name": "MCP connection to assistant",
-        "description": "Integrate MCP server with personal assistant",
-        "priority": "high",
-        "status": "in_progress",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "2",
-        "name": "Assistant v0",
-        "description": "Rituals, sprints, logging system",
-        "priority": "medium",
-        "status": "active",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "3",
-        "name": "Improve Reminder Attention-Grabbing",
-        "description": "Enhance reminder system effectiveness",
-        "priority": "medium",
-        "status": "planned",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "4",
-        "name": "Inbox Zero",
-        "description": "Daily email triage to zero",
-        "priority": "high",
-        "status": "daily",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "5",
-        "name": "Advertisements for Chi Life",
-        "description": "Create marketing materials for Chi Life",
-        "priority": "medium",
-        "status": "planned",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "6",
-        "name": "Flyers, cards, etc. for Chi Life",
-        "description": "Print materials for Chi Life business",
-        "priority": "medium",
-        "status": "planned",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "7",
-        "name": "CJ Clarke for City Council",
-        "description": "Campaign support for CJ Clarke",
-        "priority": "medium",
-        "status": "active",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "8",
-        "name": "NBA Connect for Greg Foster",
-        "description": "Retired player portal development",
-        "priority": "medium",
-        "status": "active",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "9",
-        "name": "Discord+ with Mark and James",
-        "description": "Enhanced Discord integration project",
-        "priority": "low",
-        "status": "planned",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "10",
-        "name": "Build the Personal Assistant app",
-        "description": "Develop the main personal assistant application",
-        "priority": "high",
-        "status": "in_progress",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    }
-]
+    category: Optional[str] = None
+    progress_percentage: Optional[int] = None
 
 
 @router.get("/", response_model=List[Project])
-async def get_projects():
+async def get_projects(db: Session = Depends(get_db)):
     """Get all projects"""
-    return MOCK_PROJECTS
+    projects = db.query(ProjectModel).all()
+    return projects
 
 
 @router.get("/{project_id}", response_model=Project)
-async def get_project(project_id: str):
+async def get_project(project_id: str, db: Session = Depends(get_db)):
     """Get a specific project by ID"""
-    for project in MOCK_PROJECTS:
-        if project["id"] == project_id:
-            return project
-    raise HTTPException(status_code=404, detail="Project not found")
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
 
 
 @router.post("/", response_model=Project)
-async def create_project(project: ProjectCreate):
+async def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
     """Create a new project"""
-    new_project = {
-        "id": str(len(MOCK_PROJECTS) + 1),
-        "name": project.name,
-        "description": project.description,
-        "priority": project.priority,
-        "status": "planned",
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    }
-    MOCK_PROJECTS.append(new_project)
-    return new_project
+    db_project = ProjectModel(
+        title=project.title,
+        description=project.description,
+        priority=project.priority,
+        category=project.category,
+        status="active"
+    )
+    db.add(db_project)
+    db.commit()
+    db.refresh(db_project)
+    return db_project
 
 
 @router.put("/{project_id}", response_model=Project)
-async def update_project(project_id: str, project_update: ProjectUpdate):
+async def update_project(project_id: str, project_update: ProjectUpdate, db: Session = Depends(get_db)):
     """Update an existing project"""
-    for i, project in enumerate(MOCK_PROJECTS):
-        if project["id"] == project_id:
-            # Update only provided fields
-            if project_update.name is not None:
-                project["name"] = project_update.name
-            if project_update.description is not None:
-                project["description"] = project_update.description
-            if project_update.priority is not None:
-                project["priority"] = project_update.priority
-            if project_update.status is not None:
-                project["status"] = project_update.status
-            
-            project["updated_at"] = datetime.now()
-            MOCK_PROJECTS[i] = project
-            return project
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     
-    raise HTTPException(status_code=404, detail="Project not found")
+    # Update only provided fields
+    update_data = project_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(project, field, value)
+    
+    project.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(project)
+    return project
 
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str):
+async def delete_project(project_id: str, db: Session = Depends(get_db)):
     """Delete a project"""
-    for i, project in enumerate(MOCK_PROJECTS):
-        if project["id"] == project_id:
-            deleted_project = MOCK_PROJECTS.pop(i)
-            return {"message": f"Project '{deleted_project['name']}' deleted successfully"}
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     
-    raise HTTPException(status_code=404, detail="Project not found")
+    project_title = project.title
+    db.delete(project)
+    db.commit()
+    return {"message": f"Project '{project_title}' deleted successfully"}
 
 
 @router.get("/priority/{priority}")
-async def get_projects_by_priority(priority: str):
+async def get_projects_by_priority(priority: str, db: Session = Depends(get_db)):
     """Get projects filtered by priority"""
-    filtered_projects = [p for p in MOCK_PROJECTS if p["priority"] == priority.lower()]
-    return filtered_projects
+    projects = db.query(ProjectModel).filter(ProjectModel.priority == priority.lower()).all()
+    return projects
 
 
 @router.get("/status/{status}")
-async def get_projects_by_status(status: str):
+async def get_projects_by_status(status: str, db: Session = Depends(get_db)):
     """Get projects filtered by status"""
-    filtered_projects = [p for p in MOCK_PROJECTS if p["status"] == status.lower()]
-    return filtered_projects
+    projects = db.query(ProjectModel).filter(ProjectModel.status == status.lower()).all()
+    return projects

@@ -9,6 +9,8 @@ import logging
 from api.routes import assistant, auth, projects
 from core.config import settings, is_production
 from core.database import init_db
+from models import Sprint, SprintDistraction, Project, Ritual, RitualStep
+from utils.seed_data import seed_all_data
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +25,13 @@ async def lifespan(app: FastAPI):
     logger.info(f"Debug mode: {settings.debug}")
     await init_db()
     logger.info("Database initialized successfully")
+    
+    # Seed initial data
+    try:
+        seed_all_data()
+        logger.info("Initial data seeding completed")
+    except Exception as e:
+        logger.error(f"Data seeding failed: {e}")
     yield
     # Shutdown
     logger.info("Shutting down AI Personal Assistant...")
