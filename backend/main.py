@@ -91,34 +91,11 @@ async def health_check():
 async def debug_cors():
     """Debug endpoint to check CORS configuration"""
     logger.info("CORS debug endpoint accessed")
-    
-    # Get the actual configured origins
-    if is_production():
-        current_origins = [
-            "https://mikes-personal-assistant.netlify.app",
-            "https://ai-personal-assistant-9xpq.onrender.com"
-        ]
-    else:
-        current_origins = [
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:5173"
-        ]
-    
     return {
-        "cors_enabled": True,
-        "allow_origins": current_origins,
-        "allow_credentials": allow_credentials if 'allow_credentials' in locals() else True,
-        "environment": "production" if is_production() else "development",
-        "debug_mode": settings.debug,
         "is_production": is_production(),
-        "env_vars": {
-            "ENVIRONMENT": os.getenv("ENVIRONMENT"),
-            "PORT": os.getenv("PORT"),
-            "HOST": os.getenv("HOST")
-        },
-        "note": "CORS is properly configured with exact origin matching"
+        "environment": os.getenv("ENVIRONMENT", "not-set"),
+        "allowed_origins": allowed_origins,
+        "allow_credentials": allow_credentials
     }
 
 @app.options("/{rest_of_path:path}")
