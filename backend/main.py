@@ -35,21 +35,39 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware - temporarily allow all origins for debugging
+# CORS middleware configuration
 logger.info("Configuring CORS middleware...")
 logger.info(f"Production environment detected: {is_production()}")
 
-# For now, allow all origins to get the system working
-# TODO: Lock this down once we understand the CORS issue
+# Define allowed origins based on environment
+if is_production():
+    allowed_origins = [
+        "https://mikes-personal-assistant.netlify.app",
+        "https://ai-personal-assistant-9xpq.onrender.com",
+        "https://netlify.app",  # Allow all netlify subdomains
+        "*"  # Temporarily allow all origins for debugging
+    ]
+else:
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "*"  # Allow all in development
+    ]
+
+logger.info(f"Allowed CORS origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Temporarily allow all origins
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
-logger.info("CORS middleware configured to allow all origins (temporary)")
+logger.info("CORS middleware configured successfully")
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
@@ -70,11 +88,30 @@ async def health_check():
 async def debug_cors():
     """Debug endpoint to check CORS configuration"""
     logger.info("CORS debug endpoint accessed")
+    
+    # Get the current allowed origins based on environment
+    if is_production():
+        current_origins = [
+            "https://mikes-personal-assistant.netlify.app",
+            "https://ai-personal-assistant-9xpq.onrender.com",
+            "https://netlify.app",
+            "*"
+        ]
+    else:
+        current_origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+            "*"
+        ]
+    
     return {
         "cors_enabled": True,
-        "allow_origins": ["*"],
+        "allow_origins": current_origins,
         "environment": "production" if is_production() else "development",
         "debug_mode": settings.debug,
+        "is_production": is_production(),
         "env_vars": {
             "ENVIRONMENT": os.getenv("ENVIRONMENT"),
             "PORT": os.getenv("PORT"),
