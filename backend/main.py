@@ -80,7 +80,7 @@ app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 @app.get("/")
 async def root():
     logger.info("Root endpoint accessed")
-    return {"message": "AI Personal Assistant API", "version": "0.1.0"}
+    return {"message": "AI Personal Assistant API", "version": "0.1.0", "build": "87bb345-v2"}
 
 @app.get("/health")
 async def health_check():
