@@ -1,5 +1,5 @@
 // API configuration utility
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://ai-personal-assistant-9xpq.onrender.com';
 
 export const apiUrl = (endpoint: string): string => {
   // Remove leading slash if present to avoid double slashes
