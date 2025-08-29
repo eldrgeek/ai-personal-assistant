@@ -3,9 +3,10 @@ Seed initial data from docs/initial/anchor_chat_summary.md
 """
 
 from sqlalchemy.orm import Session
-from models import Project, Ritual, RitualStep
+from models import Project, Ritual, RitualStep, Sprint
 from core.database import get_db_session
 import logging
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -162,12 +163,68 @@ def seed_initial_rituals(db: Session):
     logger.info("Seeded morning and evening rituals with steps")
 
 
+def seed_initial_sprints(db: Session):
+    """Seed initial sprint examples"""
+    
+    # Check if sprints already exist
+    existing_count = db.query(Sprint).count()
+    if existing_count > 0:
+        logger.info(f"Sprints already seeded ({existing_count} existing sprints)")
+        return
+
+    # Create some sample sprints
+    now = datetime.now()
+    
+    # Completed sprint from yesterday
+    yesterday_sprint = Sprint(
+        task="Review Chi Life marketing materials",
+        description="Go through existing marketing materials and identify areas for improvement",
+        duration_minutes=30,
+        start_time=now - timedelta(days=1, hours=2),
+        end_time=now - timedelta(days=1, hours=1, minutes=30),
+        actual_end_time=now - timedelta(days=1, hours=1, minutes=25),
+        status="completed",
+        retrospective="Good progress on identifying key areas. Need to focus on visual consistency."
+    )
+    db.add(yesterday_sprint)
+    
+    # Completed sprint from earlier today
+    earlier_sprint = Sprint(
+        task="Plan weekly priorities",
+        description="Review this week's goals and set priorities for the next few days",
+        duration_minutes=20,
+        start_time=now - timedelta(hours=3),
+        end_time=now - timedelta(hours=2, minutes=40),
+        actual_end_time=now - timedelta(hours=2, minutes=35),
+        status="completed",
+        retrospective="Successfully prioritized Chi Life work and community projects. Good focus."
+    )
+    db.add(earlier_sprint)
+    
+    # Active sprint (if none currently active)
+    active_count = db.query(Sprint).filter(Sprint.status == "active").count()
+    if active_count == 0:
+        active_sprint = Sprint(
+            task="Build Personal Assistant app features",
+            description="Implement sprint persistence and test the full workflow",
+            duration_minutes=45,
+            start_time=now - timedelta(minutes=15),
+            end_time=now + timedelta(minutes=30),
+            status="active"
+        )
+        db.add(active_sprint)
+
+    db.commit()
+    logger.info("Seeded initial sprint examples")
+
+
 def seed_all_data():
     """Seed all initial data"""
     try:
         db = get_db_session()
         seed_initial_projects(db)
         seed_initial_rituals(db)
+        seed_initial_sprints(db)
         logger.info("All initial data seeded successfully")
     except Exception as e:
         logger.error(f"Error seeding data: {e}")

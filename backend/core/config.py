@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = True
     
-    # Database
-    database_url: str = "sqlite:///./ai_assistant.db"
+    # Database - Use absolute path to ensure it works from any directory
+    database_url: str = "sqlite:///./backend/ai_assistant.db"
     
     # Security
     secret_key: str = "your-secret-key-change-in-production"
@@ -76,6 +76,20 @@ if is_production():
         settings.secret_key = os.getenv("SECRET_KEY")
     if os.getenv("DATABASE_URL"):
         settings.database_url = os.getenv("DATABASE_URL")
+else:
+    # In development, ensure we use the correct database path
+    # Find the project root by looking for the backend directory
+    current_working_dir = os.getcwd()
+    
+    # If we're already in the backend directory, go up one level
+    if os.path.basename(current_working_dir) == "backend":
+        project_root = os.path.dirname(current_working_dir)
+    else:
+        # Otherwise, assume we're in the project root
+        project_root = current_working_dir
+    
+    db_path = os.path.join(project_root, "backend", "ai_assistant.db")
+    settings.database_url = f"sqlite:///{db_path}"
 
 # Load environment variables on import
 load_env()

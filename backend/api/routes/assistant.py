@@ -4,6 +4,9 @@ from typing import List, Optional
 from datetime import datetime
 import httpx
 from core.config import settings
+from core.database import get_db_session
+from models import Sprint, SprintDistraction
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
@@ -30,57 +33,160 @@ class MCPToolRequest(BaseModel):
 
 
 @router.post("/sprint/start", response_model=SprintResponse)
-async def start_sprint(request: SprintRequest):
+async def start_sprint(request: SprintRequest, db: Session = Depends(get_db_session)):
     """Start a new sprint session"""
     try:
         # Create sprint session
-        sprint_id = f"sprint_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         start_time = datetime.now()
         end_time = start_time.replace(minute=start_time.minute + request.duration_minutes)
         
-        sprint = SprintResponse(
-            id=sprint_id,
+        # Create Sprint object and save to database
+        sprint = Sprint(
             task=request.task,
+            description=request.description,
             duration_minutes=request.duration_minutes,
             start_time=start_time,
             end_time=end_time,
             status="active"
         )
         
-        return sprint
+        db.add(sprint)
+        db.commit()
+        db.refresh(sprint)
+        
+        # Return response
+        return SprintResponse(
+            id=sprint.id,
+            task=sprint.task,
+            duration_minutes=sprint.duration_minutes,
+            start_time=sprint.start_time,
+            end_time=sprint.end_time,
+            status=sprint.status,
+            distractions=[]
+        )
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to start sprint: {str(e)}")
 
 
+@router.get("/sprint/active")
+async def get_active_sprint(db: Session = Depends(get_db_session)):
+    """Get the currently active sprint"""
+    try:
+        active_sprint = db.query(Sprint).filter(Sprint.status == "active").order_by(Sprint.created_at.desc()).first()
+        if not active_sprint:
+            return {"message": "No active sprint"}
+        
+        # Get distractions for this sprint
+        distractions = [d.distraction for d in active_sprint.distractions]
+        
+        return SprintResponse(
+            id=active_sprint.id,
+            task=active_sprint.task,
+            duration_minutes=active_sprint.duration_minutes,
+            start_time=active_sprint.start_time,
+            end_time=active_sprint.end_time,
+            status=active_sprint.status,
+            distractions=distractions
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get active sprint: {str(e)}")
+
+
+@router.get("/sprint/all")
+async def get_all_sprints(db: Session = Depends(get_db_session)):
+    """Get all sprints"""
+    try:
+        sprints = db.query(Sprint).order_by(Sprint.created_at.desc()).all()
+        return [
+            SprintResponse(
+                id=sprint.id,
+                task=sprint.task,
+                duration_minutes=sprint.duration_minutes,
+                start_time=sprint.start_time,
+                end_time=sprint.end_time,
+                status=sprint.status,
+                distractions=[d.distraction for d in sprint.distractions]
+            )
+            for sprint in sprints
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get sprints: {str(e)}")
+
+
 @router.post("/sprint/{sprint_id}/nudge")
-async def sprint_nudge(sprint_id: str, message: str = "15-minute nudge"):
+async def sprint_nudge(sprint_id: str, message: str = "15-minute nudge", db: Session = Depends(get_db_session)):
     """Send a mid-sprint nudge"""
-    return {
-        "sprint_id": sprint_id,
-        "nudge_time": datetime.now(),
-        "message": message
-    }
+    try:
+        sprint = db.query(Sprint).filter(Sprint.id == sprint_id).first()
+        if not sprint:
+            raise HTTPException(status_code=404, detail="Sprint not found")
+        
+        return {
+            "sprint_id": sprint_id,
+            "nudge_time": datetime.now(),
+            "message": message,
+            "task": sprint.task,
+            "remaining_minutes": max(0, (sprint.end_time - datetime.now()).total_seconds() / 60)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send nudge: {str(e)}")
 
 
 @router.post("/sprint/{sprint_id}/distraction")
-async def log_distraction(sprint_id: str, distraction: str):
+async def log_distraction(sprint_id: str, distraction: str, db: Session = Depends(get_db_session)):
     """Log a distraction during sprint"""
-    return {
-        "sprint_id": sprint_id,
-        "distraction": distraction,
-        "timestamp": datetime.now()
-    }
+    try:
+        sprint = db.query(Sprint).filter(Sprint.id == sprint_id).first()
+        if not sprint:
+            raise HTTPException(status_code=404, detail="Sprint not found")
+        
+        # Create and save distraction
+        distraction_obj = SprintDistraction(
+            sprint_id=sprint_id,
+            distraction=distraction
+        )
+        
+        db.add(distraction_obj)
+        db.commit()
+        
+        return {
+            "sprint_id": sprint_id,
+            "distraction": distraction,
+            "timestamp": distraction_obj.timestamp,
+            "id": distraction_obj.id
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to log distraction: {str(e)}")
 
 
 @router.post("/sprint/{sprint_id}/complete")
-async def complete_sprint(sprint_id: str, retro: str):
+async def complete_sprint(sprint_id: str, retro: str, db: Session = Depends(get_db_session)):
     """Complete a sprint with retrospective"""
-    return {
-        "sprint_id": sprint_id,
-        "completion_time": datetime.now(),
-        "retrospective": retro,
-        "status": "completed"
-    }
+    try:
+        sprint = db.query(Sprint).filter(Sprint.id == sprint_id).first()
+        if not sprint:
+            raise HTTPException(status_code=404, detail="Sprint not found")
+        
+        # Update sprint status
+        sprint.status = "completed"
+        sprint.retrospective = retro
+        sprint.actual_end_time = datetime.now()
+        sprint.updated_at = datetime.now()
+        
+        db.commit()
+        
+        return {
+            "sprint_id": sprint_id,
+            "completion_time": sprint.actual_end_time,
+            "retrospective": retro,
+            "status": "completed",
+            "task": sprint.task
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to complete sprint: {str(e)}")
 
 
 @router.post("/mcp/tool")
